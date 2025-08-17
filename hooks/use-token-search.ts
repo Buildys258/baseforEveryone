@@ -24,6 +24,7 @@ interface DexScreenerToken {
 }
 
 interface DexScreenerPair {
+  chainId:string,
   baseToken: DexScreenerToken
   quoteToken: DexScreenerToken
   dexId: string
@@ -99,7 +100,6 @@ export function useTokenSearch() {
             signal: abortControllerRef.current?.signal,
           }
         )
-
         if (!response.ok) {
           if (response.status === 404) {
             return null // Token not found on DexScreener
@@ -108,8 +108,7 @@ export function useTokenSearch() {
         }
 
         const data: DexScreenerResponse = await response.json()
-
-        if (!data.pairs || data.pairs.length === 0) {
+        if (!data.pairs || data.pairs.length === 0 || data?.pairs?.[0].chainId !== 'base') {
           return null
         }
 
@@ -141,7 +140,6 @@ export function useTokenSearch() {
           marketCap: bestPair.marketCap,
           icon: `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/${address}/logo.png`
         }
-
         return tokenInfo
       } catch (error) {
         if (abortControllerRef.current?.signal.aborted) {
