@@ -9,6 +9,10 @@ import { parseUnits } from "viem"
 import { UNISWAP_V3_ROUTER_ADDRESS } from "@/constant/address/uniswap-router"
 import { UNISWAP_V3_ROUTER_ABI } from "@/constant/abi/uniswap-router"
 import { ERC20_ABI } from "@/constant/abi/erc20"
+import { WETH_ABI } from "@/constant/abi/weth"
+import { WETH_ADDRESS } from "@/constant/address/weth"
+
+
 
 interface SwapState {
   isSwapping: boolean
@@ -30,10 +34,11 @@ export function useSwap() {
   const { writeContractAsync } = useWriteContract()
 
 
+
   // 检查代币余额
   const checkTokenBalance = async (tokenAddress: string, userAddress: string, amount: bigint) => {
     try {
-      const balance = await readContract(config,{
+      const balance = await readContract(config, {
         address: tokenAddress as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'balanceOf',
@@ -49,7 +54,7 @@ export function useSwap() {
   // 检查当前授权额度
   const checkAllowance = async (tokenAddress: string, userAddress: string, spender: string) => {
     try {
-      const allowance = await readContract(config,{
+      const allowance = await readContract(config, {
         address: tokenAddress as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'allowance',
@@ -63,6 +68,49 @@ export function useSwap() {
     }
   }
 
+  // ETH 包装为 WETH
+  const wrapETH = async (amount: bigint) => {
+    try {
+      console.log("Wrapping ETH to WETH, amount:", amount.toString())
+      
+      const wrapHash = await writeContractAsync({
+        address: WETH_ADDRESS as `0x${string}`,
+        abi: WETH_ABI,
+        functionName: "deposit",
+        args: [],
+        value: amount, // 发送ETH
+        gas: 50000n,
+      })
+
+      console.log("Wrap transaction hash:", wrapHash)
+      return wrapHash
+    } catch (error) {
+      console.error("Wrap failed:", error)
+      throw error
+    }
+  }
+
+  // WETH 解包装为 ETH
+  const unwrapWETH = async (amount: bigint) => {
+    try {
+      console.log("Unwrapping WETH to ETH, amount:", amount.toString())
+      
+      const unwrapHash = await writeContractAsync({
+        address: WETH_ADDRESS as `0x${string}`,
+        abi: WETH_ABI,
+        functionName: "withdraw",
+        args: [amount],
+        gas: 50000n,
+      })
+
+      console.log("Unwrap transaction hash:", unwrapHash)
+      return unwrapHash
+    } catch (error) {
+      console.error("Unwrap failed:", error)
+      throw error
+    }
+  }
+
   const executeSwap = useCallback(
     async (fromToken: any, toToken: any, fromAmount: string, toAmount: string) => {
       setSwapState({
@@ -73,11 +121,6 @@ export function useSwap() {
       })
 
       try {
-        // 检测钱包类型
-        const isOKXWallet = typeof window !== "undefined" && (window as any).okxwallet
-
-        console.log("Wallet detection:", { isOKXWallet })
-
         // 检查钱包连接
         if (!isConnected || !address) {
           throw new Error("Please connect your wallet")
@@ -88,22 +131,116 @@ export function useSwap() {
           to: toToken.symbol,
           fromAmount,
           toAmount,
+          fromTokenAddress: fromToken.address,
+          toTokenAddress: toToken.address,
         })
 
-        // 转换代币地址 - 重要：ETH swap需要使用WETH地址
-        const WETH_ADDRESS = "0x4200000000000000000000000000000000000006" // Base WETH
+        // 检查是否是ETH和WETH之间的转换
+        const isFromETH = !fromToken.address // 输入是原生ETH
+        const isToETH = !toToken.address // 输出是原生ETH
+        const isFromWETH = fromToken.address?.toLowerCase() === WETH_ADDRESS.toLowerCase()
+        const isToWETH = toToken.address?.toLowerCase() === WETH_ADDRESS.toLowerCase()
 
-        const tokenInAddress = fromToken.address || WETH_ADDRESS
-        const tokenOutAddress = toToken.address || WETH_ADDRESS
+        console.log("Token analysis:", {
+          isFromETH,
+          isToETH,
+          isFromWETH,
+          isToWETH,
+          fromAddress: fromToken.address,
+          toAddress: toToken.address,
+          WETH_ADDRESS
+        })
 
+        // 特殊处理：ETH ↔ WETH 的直接转换
+        if ((isFromETH && isToWETH) || (isFromWETH && isToETH)) {
+          console.log("Handling ETH ↔ WETH conversion")
+          
+          const amount = parseUnits(fromAmount, fromToken.decimals)
+          let transactionHash: string
+
+          if (isFromETH && isToWETH) {
+            // ETH → WETH (Wrap)
+            console.log("Wrapping ETH to WETH")
+            transactionHash = await wrapETH(amount)
+          } else {
+            // WETH → ETH (Unwrap)
+            console.log("Unwrapping WETH to ETH")
+            
+            // 检查WETH余额
+            const hasEnoughBalance = await checkTokenBalance(WETH_ADDRESS, address, amount)
+            if (!hasEnoughBalance) {
+              throw new Error("Insufficient WETH balance")
+            }
+            
+            transactionHash = await unwrapWETH(amount)
+          }
+
+          // 设置成功状态
+          setSwapState({
+            isSwapping: false,
+            swapError: null,
+            swapSuccess: true,
+            transactionHash: transactionHash,
+          })
+
+          console.log("ETH ↔ WETH conversion completed:", transactionHash)
+
+          // 10秒后清除成功状态
+          setTimeout(() => {
+            setSwapState((prev) => ({
+              ...prev,
+              swapSuccess: false,
+              transactionHash: null,
+            }))
+          }, 10000)
+
+          return // 直接返回，不执行后续的Uniswap交换逻辑
+        }
+
+        // 确定实际用于交换的代币地址
+        let tokenInAddress: string
+        let tokenOutAddress: string
+        let shouldSendValue = false
+
+        if (isFromETH) {
+          // 原生ETH -> 其他ERC20代币 (不包括WETH)
+          if (isToWETH) {
+            throw new Error("Use wrap function for ETH to WETH conversion")
+          }
+          tokenInAddress = WETH_ADDRESS // Uniswap中ETH用WETH地址表示
+          tokenOutAddress = toToken.address
+          shouldSendValue = true
+        } else if (isToETH) {
+          // 其他ERC20代币 -> 原生ETH (不包括WETH)
+          if (isFromWETH) {
+            throw new Error("Use unwrap function for WETH to ETH conversion")
+          }
+          tokenInAddress = fromToken.address
+          tokenOutAddress = WETH_ADDRESS // Uniswap中ETH用WETH地址表示
+          shouldSendValue = false
+        } else {
+          // ERC20 -> ERC20 交换 (包括WETH作为ERC20代币的情况)
+          tokenInAddress = fromToken.address
+          tokenOutAddress = toToken.address
+          shouldSendValue = false
+        }
+
+        // 验证地址有效性
         if (!tokenInAddress || !tokenOutAddress) {
           throw new Error("Invalid token addresses")
         }
 
-        // ETH到其他代币：tokenIn = WETH, 发送ETH value
-        // 其他代币到ETH：tokenOut = WETH, 不发送value但需要unwrap
-        const isETHInput = !fromToken.address // 输入是原生ETH
-        const isETHOutput = !toToken.address // 输出是原生ETH
+        // 确保不是相同的代币
+        if (tokenInAddress.toLowerCase() === tokenOutAddress.toLowerCase()) {
+          throw new Error("Cannot swap the same token")
+        }
+
+        console.log("Final swap addresses:", {
+          tokenInAddress,
+          tokenOutAddress,
+          shouldSendValue,
+          swapType: isFromETH ? "ETH->ERC20" : isToETH ? "ERC20->ETH" : "ERC20->ERC20"
+        })
 
         // 解析金额
         const amountIn = parseUnits(fromAmount, fromToken.decimals)
@@ -120,13 +257,14 @@ export function useSwap() {
           deadline: deadline.toString(),
           amountIn: amountIn.toString(),
           amountOutMinimum: amountOutMinimum.toString(),
+          shouldSendValue
         })
 
         let swapHash: string
 
         // 步骤1：如果不是原生ETH输入，需要先处理代币授权
-        if (!isETHInput && fromToken.address) {
-          console.log("Checking token balance and allowance...")
+        if (!shouldSendValue && fromToken.address) {
+          console.log("Checking token balance and allowance for:", fromToken.symbol)
 
           // 1. 检查代币余额
           const hasEnoughBalance = await checkTokenBalance(fromToken.address, address, amountIn)
@@ -136,7 +274,7 @@ export function useSwap() {
 
           // 2. 检查当前授权额度
           const currentAllowance = await checkAllowance(fromToken.address, address, UNISWAP_V3_ROUTER_ADDRESS)
-          console.log('@@',currentAllowance )
+          
           // 3. 如果授权不足，需要先授权
           if (currentAllowance < amountIn) {
             console.log(`Current allowance: ${currentAllowance}, Required: ${amountIn}`)
@@ -206,16 +344,18 @@ export function useSwap() {
           } else {
             console.log("Sufficient allowance already exists:", currentAllowance.toString())
           }
+        } else if (shouldSendValue) {
+          console.log("ETH swap - no approval needed, will send ETH value")
         }
 
         // 步骤2：执行交换
         console.log("Executing swap transaction...")
 
         const swapParams = {
-          tokenIn: tokenInAddress,
-          tokenOut: tokenOutAddress,
+          tokenIn: tokenInAddress as `0x${string}`,
+          tokenOut: tokenOutAddress as `0x${string}`,
           fee: 3000, // 0.3% fee tier
-          recipient: address,
+          recipient: address as `0x${string}`,
           deadline: deadline,
           amountIn: amountIn,
           amountOutMinimum: amountOutMinimum,
@@ -224,15 +364,18 @@ export function useSwap() {
 
         try {
           // 使用 writeContractAsync 进行真实的合约调用
-          swapHash = await writeContractAsync({
-            address: UNISWAP_V3_ROUTER_ADDRESS,
+          const contractCallParams = {
+            address: UNISWAP_V3_ROUTER_ADDRESS as `0x${string}`,
             abi: UNISWAP_V3_ROUTER_ABI,
-            functionName: "exactInputSingle",
+            functionName: "exactInputSingle" as const,
             args: [swapParams],
-            value: isETHInput ? amountIn : undefined, // 只有原生ETH输入时才需要 value
-            // 增加gas限制
             gas: 300000n,
-          })
+            ...(shouldSendValue ? { value: amountIn } : {}), // 只有原生ETH输入时才需要 value
+          }
+
+          console.log("Contract call parameters:", contractCallParams)
+
+          swapHash = await writeContractAsync(contractCallParams)
 
           console.log("Swap transaction hash:", swapHash)
 
@@ -273,6 +416,8 @@ export function useSwap() {
               errorMessage = "Price slippage too high, try increasing slippage tolerance"
             } else if (contractError.message.includes("Too much requested")) {
               errorMessage = "Requested amount exceeds available liquidity"
+            } else if (contractError.message.includes("Invalid token")) {
+              errorMessage = "Invalid token pair or identical tokens"
             } else {
               errorMessage = "Transaction failed due to insufficient liquidity or high slippage. Please try reducing the amount."
             }
@@ -325,6 +470,8 @@ export function useSwap() {
   return {
     ...swapState,
     executeSwap,
+    wrapETH,
+    unwrapWETH,
     clearSwapError,
     switchToBase,
     getBaseScanUrl,
