@@ -1,20 +1,35 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect, createContext, useContext } from "react"
+import { useState, useEffect, createContext, useContext } from "react";
 
-type Language = "en" | "zh"
+type Language = "en" | "zh";
 
 interface LanguageContextType {
-  language: Language
-  setLanguage: (lang: Language) => void
-  t: (key: string) => string
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
 }
 
 const translations = {
   en: {
+    // finance waring
+    "financialWarning.title": "Important Risk Warning",
+    "financialWarning.disclaimer": "Disclaimer:",
+    "financialWarning.disclaimerText":
+      "This website is for educational and practice purposes only and does not constitute any investment advice.",
+    "financialWarning.risk1":
+      "• Cryptocurrency trading involves extremely high risks and may result in total loss of funds",
+    "financialWarning.risk2":
+      "• This website is not responsible for any trading losses",
+    "financialWarning.risk3": "• Please only use funds you can afford to lose",
+    "financialWarning.risk4":
+      "• Please fully understand the relevant risks before making any trades",
+    "financialWarning.cancel": "Cancel",
+    "financialWarning.accept": "I Understand the Risks",
     // Header
+
     "header.title": "Base for Everyone",
     "header.updated": "Updated",
     "header.updating": "Updating...",
@@ -25,7 +40,8 @@ const translations = {
     "main.swap": "Swap",
     "main.anytime": "anytime,",
     "main.anywhere": "anywhere.",
-    "main.description": "The largest onchain marketplace. Buy and sell crypto on Ethereum and 12+ other chains.",
+    "main.description":
+      "The largest onchain marketplace. Buy and sell crypto on Ethereum and 12+ other chains.",
 
     // Swap interface
     "swap.youPay": "You pay",
@@ -49,9 +65,11 @@ const translations = {
     "token.searchPlaceholder": "Search tokens or paste contract address",
     "token.searching": "Searching for token...",
     "token.noTokenFound": "No token found",
-    "token.invalidContract": "Contract address may be invalid or not an ERC20 token",
+    "token.invalidContract":
+      "Contract address may be invalid or not an ERC20 token",
     "token.noResults": "No tokens found",
-    "token.searchHint": "Try searching by token name, symbol, or contract address",
+    "token.searchHint":
+      "Try searching by token name, symbol, or contract address",
     "token.addressLength": "Contract address should be 42 characters long",
     "token.add": "Add",
 
@@ -69,10 +87,12 @@ const translations = {
     // Alerts and errors
     "alert.swapSuccess": "Swap completed successfully!",
     "alert.viewDetails": "View Details",
-    "alert.fallbackPrices": "Using fallback prices - live data temporarily unavailable",
+    "alert.fallbackPrices":
+      "Using fallback prices - live data temporarily unavailable",
     "alert.transactionRejected": "Transaction was rejected",
     "alert.insufficientFunds": "Insufficient funds for transaction",
-    "alert.transactionFailed": "Transaction failed - this may be due to insufficient liquidity or slippage",
+    "alert.transactionFailed":
+      "Transaction failed - this may be due to insufficient liquidity or slippage",
     "alert.gasError": "Transaction failed due to gas estimation error",
     "alert.tryAgain": "Please try again",
 
@@ -83,7 +103,8 @@ const translations = {
     "wallet.connectionCancelled": "Connection cancelled",
     "wallet.tryAgain": "Please try connecting your wallet again",
     "wallet.noWallet": "No wallet detected",
-    "wallet.installWallet": "Please install MetaMask or another supported wallet",
+    "wallet.installWallet":
+      "Please install MetaMask or another supported wallet",
     "wallet.timeout": "Connection timeout",
     "wallet.networkError": "Please check your network connection and try again",
     "wallet.connectionFailed": "Connection failed",
@@ -98,8 +119,10 @@ const translations = {
 
     // Legal disclaimer
     "legal.title": "Important Notice",
-    "legal.demo": "This website is for educational and demonstration purposes only.",
-    "legal.noServices": "This is a demo project and does not provide real financial services.",
+    "legal.demo":
+      "This website is for educational and demonstration purposes only.",
+    "legal.noServices":
+      "This is a demo project and does not provide real financial services.",
     "legal.notProtected":
       "Any transactions or payments made through this website are not protected and may result in loss of funds.",
     "legal.noResponsibility":
@@ -110,6 +133,17 @@ const translations = {
     "language.chinese": "中文简体",
   },
   zh: {
+    "financialWarning.title": "重要风险提示",
+    "financialWarning.disclaimer": "免责声明：",
+    "financialWarning.disclaimerText":
+      "本网站仅用于教育和练习目的，不构成任何投资建议。",
+    "financialWarning.risk1":
+      "• 加密货币交易存在极高风险，可能导致全部资金损失",
+    "financialWarning.risk2": "• 本网站不对任何交易损失承担责任",
+    "financialWarning.risk3": "• 请仅使用您能承受损失的资金进行操作",
+    "financialWarning.risk4": "• 在进行任何交易前，请充分了解相关风险",
+    "financialWarning.cancel": "取消",
+    "financialWarning.accept": "我已了解风险",
     // Header
     "header.title": "Base for Everyone",
     "header.updated": "已更新",
@@ -169,7 +203,8 @@ const translations = {
     "token.contractVerified": "合约已验证且兼容ERC20",
     "token.fetchingPrice": "获取当前市场价格...",
     "token.customTokenWarning": "⚠️ 自定义代币警告",
-    "token.verifyWarning": "交易前请务必验证代币合约。恶意合约可能导致资金损失。此代币将自动选择用于交易。",
+    "token.verifyWarning":
+      "交易前请务必验证代币合约。恶意合约可能导致资金损失。此代币将自动选择用于交易。",
     "token.contractNotFound": "合约地址有效但在Base网络上未找到ERC20代币",
     "token.tokenNotFound": "未找到代币",
     "token.contractInvalid": "找不到合约地址或不是Base网络上的有效ERC20代币。",
@@ -227,7 +262,8 @@ const translations = {
     "legal.title": "重要声明",
     "legal.demo": "本网站仅用于教育和演示目的。",
     "legal.noServices": "这是一个演示项目，不提供真实的金融服务。",
-    "legal.notProtected": "通过本网站进行的任何交易或付款都不受保护，可能导致资金损失。",
+    "legal.notProtected":
+      "通过本网站进行的任何交易或付款都不受保护，可能导致资金损失。",
     "legal.noResponsibility":
       "网站开发者不对因使用本网站而产生的任何损失、损害或其他后果承担责任。请不要在本网站上进行真实的金融交易。",
 
@@ -235,41 +271,47 @@ const translations = {
     "language.english": "English",
     "language.chinese": "中文简体",
   },
-}
+};
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
+const LanguageContext = createContext<LanguageContextType | undefined>(
+  undefined
+);
 
 export function useLanguage() {
-  const context = useContext(LanguageContext)
+  const context = useContext(LanguageContext);
   if (context === undefined) {
-    throw new Error("useLanguage must be used within a LanguageProvider")
+    throw new Error("useLanguage must be used within a LanguageProvider");
   }
-  return context
+  return context;
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en")
+  const [language, setLanguageState] = useState<Language>("en");
 
   useEffect(() => {
     // Load language from localStorage, but default to English if nothing is saved
-    const savedLanguage = localStorage.getItem("language") as Language
+    const savedLanguage = localStorage.getItem("language") as Language;
     if (savedLanguage && (savedLanguage === "en" || savedLanguage === "zh")) {
-      setLanguageState(savedLanguage)
+      setLanguageState(savedLanguage);
     } else {
       // If no saved language or invalid language, default to English
-      setLanguageState("en")
-      localStorage.setItem("language", "en")
+      setLanguageState("en");
+      localStorage.setItem("language", "en");
     }
-  }, [])
+  }, []);
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang)
-    localStorage.setItem("language", lang)
-  }
+    setLanguageState(lang);
+    localStorage.setItem("language", lang);
+  };
 
   const t = (key: string): string => {
-    return translations[language][key] || key
-  }
+    return translations[language][key] || key;
+  };
 
-  return <LanguageContext.Provider value={{ language, setLanguage, t }}>{children}</LanguageContext.Provider>
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
 }
