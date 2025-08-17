@@ -11,7 +11,10 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Base for Everyone",
   description: "A decentralized exchange interface for Base chain - accessible to everyone",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: "/base-icon.jpg",   // public/base-icon.jpg
+  },
 }
 
 export default function RootLayout({
@@ -21,6 +24,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/base-icon.jpg" />
+      </head>
       <body className={inter.className}>
         <LanguageProvider>
           <ErrorBoundary>
